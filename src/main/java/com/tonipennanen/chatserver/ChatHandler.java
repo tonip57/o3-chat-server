@@ -4,7 +4,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -13,11 +20,15 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class ChatHandler implements HttpHandler {
     
     private String responseBody = "";
-
-    private ArrayList<String> messages = new ArrayList<String>();
+    private ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
+    private JSONArray jsonArray = new JSONArray();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -49,6 +60,9 @@ public class ChatHandler implements HttpHandler {
     
 
     private int handlePOSTFromClient(HttpExchange exchange) throws Exception {
+        String message = "";
+        String user = "";
+        String sent = "";
         int status = 200;
         Headers headers = exchange.getRequestHeaders();
         int contentLength = 0;
@@ -66,46 +80,84 @@ public class ChatHandler implements HttpHandler {
             responseBody = "No content type";
             return status;
         }
-        if (contentType.equalsIgnoreCase("text/plain")) {
+        if (contentType.equalsIgnoreCase("application/json")) {
             InputStream input = exchange.getRequestBody();
             String text = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
             input.close();
-            if (text.trim().length() > 0) {
-                processMessage(text);
-                exchange.sendResponseHeaders(status, -1);
-            } else {
+            try {
+                JSONObject jsonObject = new JSONObject(text);;
+                user = jsonObject.getString("user");
+                message = jsonObject.getString("message");
+                String dateStr = jsonObject.getString("sent");
+                OffsetDateTime odt = OffsetDateTime.parse(dateStr);
+                
+                System.out.println("Trying to POST message");
+                if (!user.isBlank() || !message.isBlank() || !sent.isBlank()) {
+                    addMessageToAList(new ChatMessage(user, message, odt.toLocalDateTime()));
+                    exchange.sendResponseHeaders(status, -1);
+                    System.out.println("Message sent");
+                } else {
+                    status = 400;
+                    System.out.println("Username, message or sent is missing");
+                    responseBody = "Username, message or sent is missing";
+                }
+            } catch (JSONException e) {
                 status = 400;
-                responseBody = "No content in request";
+                responseBody = "JSON Exception";
+                System.out.println("Couldn't read JSON file or file doesn't exist");
             }
         } else {
             status = 411;
-            responseBody = "Content-Type must be text/plain";
+            responseBody = "Content-Type must be application/json";
         }
         return status;
     }
 
-    private void processMessage(String text) {
-        messages.add(text);
-    }
 
     private int handleGETFromClient(HttpExchange exchange) throws Exception {
         int status = 200;
-
+        JSONArray responseMessages = new JSONArray();
+        
         if (messages.isEmpty()) {
-            status = 204;
-            exchange.sendResponseHeaders(status, -1);
+            status = 204; // response code is 20, No Content
+            exchange.sendResponseHeaders(status, -1); // -1 as content length: No content
             return status;
-        }
-        responseBody = "";
-        for (String message : messages) {
-            responseBody += message + "\n";            
-        }
-        byte [] bytes;
-        bytes = responseBody.toString().getBytes("UTF-8");
-        exchange.sendResponseHeaders(status, bytes.length);
-        OutputStream os = exchange.getResponseBody();
-        os.write(bytes);
-        os.close();
-        return status;
+        } else {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX");
+            for (ChatMessage message : messages){
+                System.out.println(message.getSent() + " " + message.getUser() + " " + message.getMessage());
+
+                ZonedDateTime zdt = message.sent.atZone(ZoneId.of( "UTC" ));
+                String sentUTC = zdt.format(formatter);
+
+                JSONObject jsonObject = new JSONObject();
+
+                jsonObject.put("user", message.getUser());
+                jsonObject.put("message", message.getMessage());
+                jsonObject.put("sent", sentUTC);
+
+                responseMessages.put(jsonObject);
+            }
+
+            byte [] bytes;
+            bytes = responseMessages.toString().getBytes("UTF-8");
+            exchange.sendResponseHeaders(status, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+            return status;
+        }        
+    }
+
+
+    public void addMessageToAList(ChatMessage addMessage){
+        messages.add(addMessage);
+
+        Collections.sort(messages, new Comparator<ChatMessage>() {
+            @Override
+            public int compare(ChatMessage lhs, ChatMessage rhs) {
+            return lhs.sent.compareTo(rhs.sent);
+            }
+        });
     }
 }

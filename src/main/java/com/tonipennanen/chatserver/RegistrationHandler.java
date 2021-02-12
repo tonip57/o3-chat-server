@@ -12,6 +12,9 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class RegistrationHandler implements HttpHandler {
     private ChatAuthenticator ca = null;
 
@@ -22,11 +25,14 @@ public class RegistrationHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         int status = 200;
+        int contentLength = 0;
         String responseBody = "";
+        String username = "";
+        String password = "";
+        String email = "";
         try {
             if (exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 Headers headers = exchange.getRequestHeaders();
-                int contentLength = 0;
                 String contentType = "";
                 if (headers.containsKey("Content-Length")) {
                     contentLength = Integer.parseInt(headers.get("Content-Length").get(0));
@@ -39,45 +45,55 @@ public class RegistrationHandler implements HttpHandler {
                     status = 400;
                     responseBody = "No content type";
                 }
-                if (contentType.equalsIgnoreCase("text/plain")) {
+                if (contentType.equalsIgnoreCase("application/json")) {
                     InputStream input = exchange.getRequestBody();
                     String text = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8)).lines()
                             .collect(Collectors.joining("\n"));
                     input.close();
-                    if (text.trim().length() > 0) {
-                        String [] items = text.split(":");
-                        if (items.length == 2) {
-                            if (items[0].trim().length() > 0 && items[1].trim().length() > 0) {
-                                if (ca.addUser(items[0], items[1])){
-                                    exchange.sendResponseHeaders(status, -1);
-                                } else {
-                                    
-                                }
+                    try {
+                        JSONObject registrationMsg = new JSONObject(text);
+                        username = registrationMsg.getString("username");
+                        password = registrationMsg.getString("password");
+                        email = registrationMsg.getString("email");
+                        System.out.println("Trying to create an account. Username: " + username);
+                        if (!username.isBlank() || !password.isBlank() || !email.isBlank()) {
+                            User user = new User(username, password, email);
+                            if (ca.addUser(username, user)) {
+                                System.out.println("Account created");
+                                responseBody = "Account created";
+                                exchange.sendResponseHeaders(status, -1);
                             } else {
                                 status = 400;
-                                responseBody = "Invalid user credentials";
+                                System.out.println("User with this username already exists");
+                                responseBody = "User with this username already exists";
                             }
                         } else {
                             status = 400;
-                            responseBody = "Invalid user credentials";
+                            System.out.println("Some registration credentials is missing");
+                            responseBody = "Some registration credentials is missing";
                         }
-                    } else {
+                    } catch (JSONException e) {
                         status = 400;
-                        responseBody = "No content in request";
+                        responseBody = "JSON Exception";
+                        System.out.println("Couldn't read JSON file or file doesn't exist");
                     }
                 } else {
                     status = 411;
-                    responseBody = "Content-Type must be text/plain";
+                    System.out.println("Content-Type must be application/json");
+                    responseBody = "Content-Type must be application/json";
                 }
             } else {
                 status = 400;
+                System.out.println("Request method not supported");
                 responseBody = "Not supported";
             }
         } catch (IOException e) {
             status = 500;
+            System.out.println("Error in handling the request");
             responseBody = "Error in handling the request: " + e.getMessage();
         } catch (Exception e) {
             status = 500;
+            System.out.println("Server error");
             responseBody = "Server error: " + e.getMessage();
         }
         if (status < 200 || status > 299) {

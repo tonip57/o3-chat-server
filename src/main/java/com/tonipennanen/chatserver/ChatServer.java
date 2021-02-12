@@ -60,6 +60,7 @@ public class ChatServer {
             System.out.println("Certificate not found");
             e.printStackTrace();
         } catch (Exception e) {
+            System.out.println("Exception");
             e.printStackTrace();
         }
 
