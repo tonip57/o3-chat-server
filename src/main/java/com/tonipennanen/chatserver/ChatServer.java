@@ -36,6 +36,8 @@ public class ChatServer {
 
     public static void main(String[] args) {
         try {
+            ChatDatabase database = ChatDatabase.getInstance();
+            database.open("database.db");
             HttpsServer server = HttpsServer.create(new InetSocketAddress(8001), 0);
             SSLContext sslContext = chatServerSSLContext();
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {

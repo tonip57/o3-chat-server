@@ -27,8 +27,7 @@ import org.json.JSONObject;
 public class ChatHandler implements HttpHandler {
     
     private String responseBody = "";
-    private ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
-    private JSONArray jsonArray = new JSONArray();
+    
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -61,7 +60,7 @@ public class ChatHandler implements HttpHandler {
 
     private int handlePOSTFromClient(HttpExchange exchange) throws Exception {
         String message = "";
-        String user = "";
+        String nick = "";
         String sent = "";
         int status = 200;
         Headers headers = exchange.getRequestHeaders();
@@ -86,14 +85,15 @@ public class ChatHandler implements HttpHandler {
             input.close();
             try {
                 JSONObject jsonObject = new JSONObject(text);;
-                user = jsonObject.getString("user");
+                nick = jsonObject.getString("user");
                 message = jsonObject.getString("message");
                 String dateStr = jsonObject.getString("sent");
                 OffsetDateTime odt = OffsetDateTime.parse(dateStr);
                 
                 System.out.println("Trying to POST message");
-                if (!user.isBlank() || !message.isBlank() || !sent.isBlank()) {
-                    addMessageToAList(new ChatMessage(user, message, odt.toLocalDateTime()));
+                if (!nick.isBlank() || !message.isBlank() || !sent.isBlank()) {
+                    ChatDatabase cdb = ChatDatabase.getInstance();
+                    cdb.addMessageToDatabase(new ChatMessage(nick, message, odt.toLocalDateTime()));
                     exchange.sendResponseHeaders(status, -1);
                     System.out.println("Message sent");
                 } else {
@@ -117,6 +117,9 @@ public class ChatHandler implements HttpHandler {
     private int handleGETFromClient(HttpExchange exchange) throws Exception {
         int status = 200;
         JSONArray responseMessages = new JSONArray();
+        ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
+        ChatDatabase cdb = ChatDatabase.getInstance();
+        messages = cdb.getMessages();
         
         if (messages.isEmpty()) {
             status = 204; // response code is 20, No Content
@@ -125,14 +128,14 @@ public class ChatHandler implements HttpHandler {
         } else {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX");
             for (ChatMessage message : messages){
-                System.out.println(message.getSent() + " " + message.getUser() + " " + message.getMessage());
+                System.out.println(message.getSent() + " " + message.getNick() + " " + message.getMessage());
 
                 ZonedDateTime zdt = message.sent.atZone(ZoneId.of( "UTC" ));
                 String sentUTC = zdt.format(formatter);
 
                 JSONObject jsonObject = new JSONObject();
 
-                jsonObject.put("user", message.getUser());
+                jsonObject.put("user", message.getNick());
                 jsonObject.put("message", message.getMessage());
                 jsonObject.put("sent", sentUTC);
 
@@ -147,17 +150,5 @@ public class ChatHandler implements HttpHandler {
             os.close();
             return status;
         }        
-    }
-
-
-    public void addMessageToAList(ChatMessage addMessage){
-        messages.add(addMessage);
-
-        Collections.sort(messages, new Comparator<ChatMessage>() {
-            @Override
-            public int compare(ChatMessage lhs, ChatMessage rhs) {
-            return lhs.sent.compareTo(rhs.sent);
-            }
-        });
     }
 }

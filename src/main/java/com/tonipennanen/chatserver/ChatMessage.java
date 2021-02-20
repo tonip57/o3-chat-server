@@ -1,21 +1,22 @@
 package com.tonipennanen.chatserver;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 public class ChatMessage {
     LocalDateTime sent;
-    private String user;
+    private String nick;
     private String message;
 
    
-    public ChatMessage(String user, String message, LocalDateTime sent){
-        this.user = user;
+    public ChatMessage(String nick, String message, LocalDateTime sent){
+        this.nick = nick;
         this.message = message;
         this.sent = sent;
     }
 
-    public String getUser(){
-        return user;
+    public String getNick(){
+        return nick;
     }
 
     public String getMessage(){
@@ -24,6 +25,10 @@ public class ChatMessage {
 
     public LocalDateTime getSent(){
         return sent;
+    }
+
+    long dateAsInt() {
+        return sent.toInstant(ZoneOffset.UTC).toEpochMilli();
     }
 }
 
