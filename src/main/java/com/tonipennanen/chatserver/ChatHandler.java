@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -116,22 +117,44 @@ public class ChatHandler implements HttpHandler {
 
     private int handleGETFromClient(HttpExchange exchange) throws Exception {
         int status = 200;
+        String ifModiSince = "";
         JSONArray responseMessages = new JSONArray();
         ArrayList<ChatMessage> messages = new ArrayList<ChatMessage>();
         ChatDatabase cdb = ChatDatabase.getInstance();
-        messages = cdb.getMessages();
+        Headers headers = exchange.getResponseHeaders();
+        Headers requestHeaders = exchange.getRequestHeaders();
         
+        if (requestHeaders.containsKey("If-Modified-Since")) {
+            ifModiSince = requestHeaders.get("If-Modified-Since").get(0);
+            ZonedDateTime zonedDate = ZonedDateTime.parse(ifModiSince);
+            LocalDateTime fromWhichDate = zonedDate.toLocalDateTime();
+            long messagesSince = -1;
+            
+            messagesSince = fromWhichDate.toInstant(ZoneOffset.UTC).toEpochMilli();
+            messages = cdb.getMessagesSince(messagesSince);  
+        } else {
+            System.out.println("100 Messages");
+            messages = cdb.getMessages();
+        }
+
         if (messages.isEmpty()) {
             status = 204; // response code is 20, No Content
             exchange.sendResponseHeaders(status, -1); // -1 as content length: No content
             return status;
         } else {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX");
+            ZonedDateTime dateMax = null;
             for (ChatMessage message : messages){
                 System.out.println(message.getSent() + " " + message.getNick() + " " + message.getMessage());
 
+                if (dateMax == null) {
+                    dateMax = message.sent.atZone(ZoneId.of( "UTC" ));
+                }
+
                 ZonedDateTime zdt = message.sent.atZone(ZoneId.of( "UTC" ));
                 String sentUTC = zdt.format(formatter);
+
+                dateMax = zdt.isAfter(dateMax) ? zdt : dateMax;
 
                 JSONObject jsonObject = new JSONObject();
 
@@ -141,6 +164,10 @@ public class ChatHandler implements HttpHandler {
 
                 responseMessages.put(jsonObject);
             }
+
+            String dateMaxString = dateMax.format(formatter);
+            headers = exchange.getResponseHeaders();
+            headers.add("Last-Modified", dateMaxString);
 
             byte [] bytes;
             bytes = responseMessages.toString().getBytes("UTF-8");

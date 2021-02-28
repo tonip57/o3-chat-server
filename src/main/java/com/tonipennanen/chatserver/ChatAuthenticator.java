@@ -6,7 +6,6 @@ import java.util.Map;
 
 import com.sun.net.httpserver.BasicAuthenticator;
 
-
 public class ChatAuthenticator extends BasicAuthenticator {
     private Map<String, User> users = null;
 
