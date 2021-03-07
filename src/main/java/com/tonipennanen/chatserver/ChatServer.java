@@ -1,10 +1,16 @@
 package com.tonipennanen.chatserver;
 
+import java.io.BufferedReader;
+import java.io.Console;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.security.KeyStore;
 import java.time.LocalDateTime;
+import java.util.Scanner;
+import java.util.concurrent.Executors;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -17,10 +23,10 @@ import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 
 public class ChatServer {
-    private static SSLContext chatServerSSLContext() throws Exception {
-        char[] passphrase = "testisalasana321".toCharArray();
+    private static SSLContext chatServerSSLContext(String pass, String jksfile) throws Exception {
+        char[] passphrase = pass.toCharArray();
         KeyStore ks = KeyStore.getInstance("JKS");
-        ks.load(new FileInputStream("keystore.jks"), passphrase);
+        ks.load(new FileInputStream(jksfile), passphrase);
 
         KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
         kmf.init(ks, passphrase);
@@ -34,12 +40,19 @@ public class ChatServer {
         return ssl;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
+            System.out.println("Launching ChatServer..");
+            System.out.println("Initializing database..");
+            if (args.length != 3) {
+                System.out.println("Usage java -jar jar-file.jar dbname.db cert.jks c3rt-p4ssw0rd");
+                return;
+            }
+            boolean running = true;
             ChatDatabase database = ChatDatabase.getInstance();
-            database.open("database.db");
+            database.open(args[0]);
             HttpsServer server = HttpsServer.create(new InetSocketAddress(8001), 0);
-            SSLContext sslContext = chatServerSSLContext();
+            SSLContext sslContext = chatServerSSLContext(args[2], args[1]);
             server.setHttpsConfigurator(new HttpsConfigurator(sslContext) {
                 @Override
                 public void configure(HttpsParameters params) {
@@ -53,10 +66,23 @@ public class ChatServer {
             HttpContext chatContext = server.createContext("/chat", new ChatHandler());
             chatContext.setAuthenticator(ca);
             server.createContext("/registration", new RegistrationHandler(ca));
-            server.setExecutor(null);
+            server.setExecutor(Executors.newCachedThreadPool());
             server.start();
             System.out.println("Started");
 
+            Console console = System.console();
+
+            while (running == true) {
+                String quitStr = console.readLine();
+                System.out.println(quitStr);
+                if (quitStr.equals("/quit")) {
+                    running = false;
+                    server.stop(3);
+                    System.out.println("Server stopped");
+                    database.close();
+                    System.out.println("Database closed");
+                }
+            }
         } catch (FileNotFoundException e) {
             // Certificate file not found!
             System.out.println("Certificate not found");
@@ -65,7 +91,5 @@ public class ChatServer {
             System.out.println("Exception");
             e.printStackTrace();
         }
-
-        
     }
 }

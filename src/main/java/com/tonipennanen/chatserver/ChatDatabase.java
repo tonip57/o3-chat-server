@@ -170,4 +170,9 @@ public class ChatDatabase {
         
         return messages;
     }
+
+    public void close() throws SQLException {
+        connection.close();
+        return;
+    }
 }

@@ -32,6 +32,8 @@ public class ChatHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
+        System.out.println("Request handled in thread " +
+        Thread.currentThread().getId());
         int status = 200;
         try {
             if (exchange.getRequestMethod().equalsIgnoreCase("POST")){
