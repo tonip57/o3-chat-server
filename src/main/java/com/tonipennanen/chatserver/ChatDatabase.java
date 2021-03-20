@@ -17,6 +17,9 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+//Database Class that creates/opens databasetable for users and messages
+//Inserts every user and message in the database
+
 public class ChatDatabase {
     private static ChatDatabase singleton = null;
     Connection connection = null;

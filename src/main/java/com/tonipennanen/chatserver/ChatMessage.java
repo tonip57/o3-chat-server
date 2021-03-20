@@ -3,6 +3,8 @@ package com.tonipennanen.chatserver;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
+//Class for chat message objects
+
 public class ChatMessage {
     LocalDateTime sent;
     private String nick;

@@ -6,6 +6,9 @@ import java.util.Map;
 
 import com.sun.net.httpserver.BasicAuthenticator;
 
+//ChatAutheticator class adds new users and checks if they already exist
+//also checks user credentials
+
 public class ChatAuthenticator extends BasicAuthenticator {
     private Map<String, User> users = null;
 

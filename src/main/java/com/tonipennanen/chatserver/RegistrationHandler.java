@@ -15,6 +15,8 @@ import com.sun.net.httpserver.HttpHandler;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+//Class for handling new user registrations
+
 public class RegistrationHandler implements HttpHandler {
     private ChatAuthenticator ca = null;
 

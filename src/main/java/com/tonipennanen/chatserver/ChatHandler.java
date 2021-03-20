@@ -25,6 +25,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+//ChatHandler class handles clients GET and POST requests
+//also sends messages to ChatDatabase
+
 public class ChatHandler implements HttpHandler {
     
     private String responseBody = "";

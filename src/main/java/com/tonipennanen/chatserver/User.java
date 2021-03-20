@@ -1,5 +1,7 @@
 package com.tonipennanen.chatserver;
 
+//User objects
+
 public class User {
     private String username;
     private String password;

@@ -1,15 +1,10 @@
 package com.tonipennanen.chatserver;
 
-import java.io.BufferedReader;
 import java.io.Console;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.security.KeyStore;
-import java.time.LocalDateTime;
-import java.util.Scanner;
 import java.util.concurrent.Executors;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -21,6 +16,10 @@ import com.sun.net.httpserver.HttpsServer;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
+
+//ChatServer class with the server's main-function. 
+// Opening or creating new database.
+// Main-functions arguments: "dbname.db certificate.jks c3rt-p4ssw0rd"
 
 public class ChatServer {
     private static SSLContext chatServerSSLContext(String pass, String jksfile) throws Exception {
@@ -68,7 +67,7 @@ public class ChatServer {
             server.createContext("/registration", new RegistrationHandler(ca));
             server.setExecutor(Executors.newCachedThreadPool());
             server.start();
-            System.out.println("Started");
+            System.out.println("Server started");
 
             Console console = System.console();
 
@@ -88,7 +87,7 @@ public class ChatServer {
             System.out.println("Certificate not found");
             e.printStackTrace();
         } catch (Exception e) {
-            System.out.println("Exception");
+            System.out.println("Exception in starting the server");
             e.printStackTrace();
         }
     }
